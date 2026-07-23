@@ -22,12 +22,20 @@ the Arduino converts them to PWM/DIR signals and enforces a communication
 watchdog — if commands stop arriving (app killed, cable unplugged), the
 Arduino stops both motors on its own.
 
+> **Read first — the Arduino firmware must be uploaded before anything works.**
+> A brand-new or factory Arduino does **not** understand this GUI. You must
+> flash the included bridge sketch (`arduino/mdds30_bridge/`) onto the board
+> **once**, before connecting the GUI. Until you do, the GUI can "connect" to
+> the serial port but the motor driver stays completely idle. The full
+> Arduino source is included in this repository — see
+> [Setup: upload the Arduino firmware](#setup-upload-the-arduino-firmware).
+
 ## Repository contents
 
 | Path | Description |
 |------|-------------|
 | `motor_control.py` | Desktop GUI (Python, tkinter + pyserial). Runs on macOS, Windows, Linux. |
-| `arduino/mdds30_bridge/mdds30_bridge.ino` | Arduino UNO bridge sketch. Upload with Arduino IDE. |
+| `arduino/mdds30_bridge/mdds30_bridge.ino` | Arduino UNO bridge sketch (full source, included). Must be uploaded to the board before first use — see [Setup](#setup-upload-the-arduino-firmware). |
 
 ## Requirements (PC side)
 
@@ -41,6 +49,52 @@ Run:
 ```
 python3 motor_control.py
 ```
+
+## Setup: upload the Arduino firmware
+
+**Do this once, before you use the GUI.** The bridge sketch turns a plain
+Arduino UNO into the USB-serial-to-PWM/DIR bridge the GUI talks to. Without
+it the driver never moves. The complete source ships with this repo at
+`arduino/mdds30_bridge/mdds30_bridge.ino` — you compile and flash it yourself;
+nothing is pre-installed on the board.
+
+Connect the Arduino to the PC with a **data** USB cable (charge-only cables
+will not enumerate the board). Then use either method below.
+
+### Option A — Arduino IDE (graphical, easiest)
+
+1. Install the Arduino IDE (<https://www.arduino.cc/en/software>).
+2. Open `arduino/mdds30_bridge/mdds30_bridge.ino`.
+3. **Tools → Board → Arduino UNO**.
+4. **Tools → Port →** your board
+   (macOS: `/dev/cu.usbmodem*`, Linux: `/dev/ttyACM*`, Windows: `COM*`).
+5. Click **Upload** (right arrow). Wait for "Done uploading."
+
+### Option B — arduino-cli (command line)
+
+```bash
+# Install the CLI once
+#   macOS:  brew install arduino-cli
+#   others: https://arduino.github.io/arduino-cli/latest/installation/
+
+# Install the AVR core (one-time)
+arduino-cli core update-index
+arduino-cli core install arduino:avr
+
+# Find your board's port
+arduino-cli board list
+
+# Compile and upload (replace the port with the one from `board list`)
+arduino-cli compile --fqbn arduino:avr:uno arduino/mdds30_bridge
+arduino-cli upload  -p /dev/cu.usbmodem14101 --fqbn arduino:avr:uno arduino/mdds30_bridge
+```
+
+> **Note:** the upload needs exclusive access to the serial port. If the GUI
+> (or an Arduino Serial Monitor) is connected to the board, disconnect it
+> first, or the upload fails with the port busy.
+
+After a successful upload, start the GUI, pick the same port, and click
+**Connect** — the board should answer `OK HERMES_MDDS30_BRIDGE_READY`.
 
 ## Hardware
 
@@ -118,7 +172,8 @@ cycle** on AN1 and AN2 (the bridge sketch outputs this from boot).
 
 ## Recommended power-up order
 
-1. Upload the bridge sketch to the Arduino.
+1. Upload the bridge sketch to the Arduino (one-time, see
+   [Setup](#setup-upload-the-arduino-firmware)).
 2. Connect the GUI (or Serial Monitor) and confirm the Arduino reports
    `OK HERMES_MDDS30_BRIDGE_READY` with motors stopped.
 3. Power the MDDS30 motor supply.
